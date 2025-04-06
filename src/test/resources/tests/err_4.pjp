@@ -1,0 +1,7 @@
+int x;
+string s;
+bool b;
+
+x = 5;
+s = "text";
+b = x == s;

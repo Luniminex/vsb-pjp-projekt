@@ -1,0 +1,5 @@
+int x;
+x = 5;
+if (x) {
+    write "x was true";
+}
