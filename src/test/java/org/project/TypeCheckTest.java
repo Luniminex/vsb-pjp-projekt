@@ -43,8 +43,10 @@ public class TypeCheckTest {
         boolean hasSyntaxErrors = syntaxErrors.hasErrors();
         boolean hasTypeErrors = false;
 
+        TypeChecker checker = null;
+
         if (!hasSyntaxErrors) {
-            TypeChecker checker = new TypeChecker();
+            checker = new TypeChecker();
             checker.visit(tree);
             hasTypeErrors = checker.hasErrors();
         }
@@ -52,6 +54,11 @@ public class TypeCheckTest {
         if (hasSyntaxErrors) {
             System.out.println("  Syntax error(s):");
             syntaxErrors.getErrors().forEach(System.out::println);
+        }
+
+        if (hasTypeErrors && checker != null) {
+            System.out.println("  Type error(s):");
+            checker.printErrors();
         }
 
         assertFalse(hasSyntaxErrors, "Unexpected syntax error in file: " + file.getName());
@@ -101,7 +108,6 @@ public class TypeCheckTest {
         assertTrue(hasSyntaxErrors || hasTypeErrors,
                 "Expected error in file: " + file.getName() + ", but none occurred.");
     }
-
 
     private static Stream<File> getFilesWithPrefix(String prefix) {
         File dir = new File(TEST_DIR);

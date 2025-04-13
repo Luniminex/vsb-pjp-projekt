@@ -1,0 +1,10 @@
+push B true
+save cond
+load cond
+fjmp L0
+push I 1
+jmp L1
+label L0
+push I 10
+label L1
+save x

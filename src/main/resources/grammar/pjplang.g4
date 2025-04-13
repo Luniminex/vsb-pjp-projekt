@@ -3,42 +3,50 @@ grammar pjplang;
 program: statement* EOF;
 
 statement
-    : ';'  #Empty
-    | type varList ';' #Declaration
-    | 'read' varList ';' #Read
-    | 'write' exprList ';' #Write
-    | expression ';' #ExprStmt
-    | 'if' '(' expression ')' statement ('else' statement)? #If
-    | 'while' '(' expression ')' statement #While
-    | '{' statement* '}' #Block
-    | 'for' '(' (type IDENT '=' expression | expression)? ';' expression? ';' expression? ')' statement #For
+    : type varList ';'
+    | expression ';'
+    | ID '=' expression ';'
+    | 'read' varList ';'
+    | 'write' exprList ';'
+    | 'if' '(' expression ')' statement ('else' statement)?
+    | 'while' '(' expression ')' statement
+    | '{' statement* '}'          // ← Důležité pro bloky
+    | ';'                         // ← Prázdný statement
     ;
 
-type: 'int' | 'float' | 'bool' | 'string';
-varList: IDENT (',' IDENT)*;
 exprList: expression (',' expression)*;
 
+type: 'int' | 'float' | 'bool' | 'string';
+varList: ID (',' ID)*;
+
 expression
-    : IDENT '=' expression #Assign
-    | expression op=('+' | '-' | '*' | '/' | '%') expression #Arith
-    | expression op=('<' | '>') expression #Relational
-    | expression op=('==' | '!=') expression #Compare
-    | expression op=('&&' | '||') expression #Logic
-    | '!' expression #Not
-    | '-' expression #UnaryMinus
-    | expression '.' expression #Concat
-    | '(' expression ')' #Paren
-    | literal #LiteralExpr
-    | IDENT #VarExpr
+    : expression '?' expression ':' expression   #TernaryExpr
+    | expression op=('*' | '/' | '%') expression #MulDivMod
+    | expression op=('+' | '-' | '.') expression #AddSubConcat
+    | expression op=('<' | '>') expression       #Relational
+    | expression op=('==' | '!=') expression     #Equality
+    | expression op='&&' expression              #AndExpr
+    | expression op='||' expression              #OrExpr
+    | '!' expression                             #NotExpr
+    | '-' expression                             #UnaryMinus
+    | '(' expression ')'                         #ParenExpr
+    | literal                                    #LiteralExpr
+    | ID                                         #VarExpr
     ;
 
-literal: INT | FLOAT | BOOL | STRING;
+literal
+    : INT    #IntLit
+    | FLOAT  #FloatLit
+    | BOOL   #BoolLit
+    | STRING #StringLit
+    ;
 
-BOOL: 'true' | 'false';
 INT: [0-9]+;
-FLOAT: [0-9]+ '.' [0-9]+;
+FLOAT: [0-9]+ '.' [0-9]*;
+BOOL: 'true' | 'false';
 STRING: '"' .*? '"';
-IDENT: [a-zA-Z][a-zA-Z0-9]*;
+
+ID: [a-zA-Z_][a-zA-Z0-9_]*;
 
 WS: [ \t\r\n]+ -> skip;
 COMMENT: '//' ~[\r\n]* -> skip;

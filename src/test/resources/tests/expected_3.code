@@ -1,0 +1,15 @@
+push I 0
+save x
+label L0
+load x
+push I 5
+lt I
+fjmp L1
+load x
+print 1
+load x
+push I 1
+add I
+save x
+jmp L0
+label L1
