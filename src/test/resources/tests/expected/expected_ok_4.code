@@ -1,5 +1,11 @@
+push I 0
+save x
+push B false
+save cond
 push B true
 save cond
+load cond
+pop
 load cond
 fjmp L0
 push I 1
@@ -8,3 +14,5 @@ label L0
 push I 10
 label L1
 save x
+load x
+pop

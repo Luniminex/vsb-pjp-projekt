@@ -21,14 +21,27 @@ import static org.junit.jupiter.api.Assertions.*;
 public class CodeGenTest {
 
     private static final String TEST_DIR = "src/test/resources/tests/";
+    private static final String PASS_DIR = TEST_DIR + "pass/";
+    private static final String EXPECTED_DIR = TEST_DIR + "expected/";
+    private static final String GENERATED_DIR = TEST_DIR + "generated/";
 
     public static Stream<File> providePassingFiles() {
-        return getFilesWithPrefix("ok_");
+        return getFilesFromDir(PASS_DIR);
     }
 
     @ParameterizedTest
     @MethodSource("providePassingFiles")
     void testCodeGeneration(File file) throws IOException {
+        processFile(file, true);
+    }
+
+    public void generateAll() throws IOException {
+        for (File file : getFilesFromDir(PASS_DIR).toList()) {
+            processFile(file, false); // Just generate, don't assert
+        }
+    }
+
+    private void processFile(File file, boolean checkAgainstExpected) throws IOException {
         String content = Files.readString(file.toPath());
         CharStream input = CharStreams.fromString(content);
         pjplangLexer lexer = new pjplangLexer(input);
@@ -40,33 +53,36 @@ public class CodeGenTest {
         parser.addErrorListener(syntaxErrors);
 
         ParseTree tree = parser.program();
-        assertFalse(syntaxErrors.hasErrors(), "Syntax error(s) in file: " + file.getName());
+        if (checkAgainstExpected) {
+            assertFalse(syntaxErrors.hasErrors(), "Syntax error(s) in file: " + file.getName());
+        }
 
         TypeChecker checker = new TypeChecker();
         checker.visit(tree);
-        assertFalse(checker.hasErrors(), "Type error(s) in file: " + file.getName());
+        if (checkAgainstExpected) {
+            assertFalse(checker.hasErrors(), "Type error(s) in file: " + file.getName());
+        }
 
         CodeGenerator generator = new CodeGenerator();
         generator.visit(tree);
         List<String> code = generator.getInstructions();
-
         String actual = normalizeLabels(code);
 
-        // 📦 ZGENERUJ výstupní .code soubor
-        String generatedPath = file.getPath().replace("ok_", "generated_").replace(".pjp", ".code");
+        String baseName = file.getName().replace(".pjp", "");
+        String generatedPath = GENERATED_DIR + "generated_" + baseName + ".code";
         Files.writeString(new File(generatedPath).toPath(), actual);
 
-        // 📥 Načti očekávaný .code soubor
-        String expectedPath = file.getPath().replace("ok_", "expected_").replace(".pjp", ".code");
-        File expectedFile = new File(expectedPath);
-        assertTrue(expectedFile.exists(), "Expected file missing: " + expectedFile.getName());
+        if (checkAgainstExpected) {
+            String expectedPath = EXPECTED_DIR + "expected_" + baseName + ".code";
+            File expectedFile = new File(expectedPath);
+            assertTrue(expectedFile.exists(), "Expected file missing: " + expectedFile.getName());
 
-        String expectedRaw = Files.readString(expectedFile.toPath()).trim();
-        String expected = normalizeLabels(Arrays.asList(expectedRaw.split("\n")));
+            String expectedRaw = Files.readString(expectedFile.toPath()).trim();
+            String expected = normalizeLabels(Arrays.asList(expectedRaw.split("\n")));
 
-        assertEquals(expected, actual, "Generated code doesn't match expected for: " + file.getName());
+            assertEquals(expected, actual, "Generated code doesn't match expected for: " + baseName);
+        }
     }
-
 
     private static String normalizeLabels(List<String> lines) {
         Map<String, String> labelMap = new HashMap<>();
@@ -80,7 +96,7 @@ public class CodeGenTest {
             if (m.matches()) {
                 String cmd = m.group(1);
                 String oldLabel = m.group(2);
-                String newLabel = labelMap.computeIfAbsent(oldLabel, k -> "L" + (counter.getAndIncrement()));
+                String newLabel = labelMap.computeIfAbsent(oldLabel, k -> "L" + counter.getAndIncrement());
                 normalized.add(cmd + " " + newLabel);
             } else {
                 normalized.add(line.trim());
@@ -90,15 +106,15 @@ public class CodeGenTest {
         return String.join("\n", normalized).trim();
     }
 
-    private static Stream<File> getFilesWithPrefix(String prefix) {
-        File dir = new File(TEST_DIR);
+    private static Stream<File> getFilesFromDir(String dirPath) {
+        File dir = new File(dirPath);
         if (!dir.exists() || !dir.isDirectory()) {
-            throw new RuntimeException("Missing test directory: " + TEST_DIR);
+            throw new RuntimeException("Missing directory: " + dirPath);
         }
 
-        File[] files = dir.listFiles((d, name) -> name.startsWith(prefix) && name.endsWith(".pjp"));
+        File[] files = dir.listFiles((d, name) -> name.endsWith(".pjp"));
         if (files == null || files.length == 0) {
-            throw new RuntimeException("No test files found with prefix: " + prefix);
+            throw new RuntimeException("No test files found in: " + dirPath);
         }
 
         return Arrays.stream(files);

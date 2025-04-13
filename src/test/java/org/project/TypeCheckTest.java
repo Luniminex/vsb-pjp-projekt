@@ -10,18 +10,22 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TypeCheckTest {
 
-    private static final String TEST_DIR = "src/test/resources/tests/";
+    private static final String TEST_PASS_DIR = "src/test/resources/tests/pass/";
+    private static final String TEST_ERR_DIR = "src/test/resources/tests/errors/";
 
     public static Stream<File> providePassingFiles() {
-        return getFilesWithPrefix("ok_");
+        return getFilesFromDir(TEST_PASS_DIR);
+    }
+
+    public static Stream<File> provideFailingFiles() {
+        return getFilesFromDir(TEST_ERR_DIR);
     }
 
     @ParameterizedTest
@@ -40,33 +44,11 @@ public class TypeCheckTest {
         parser.addErrorListener(syntaxErrors);
 
         ParseTree tree = parser.program();
-        boolean hasSyntaxErrors = syntaxErrors.hasErrors();
-        boolean hasTypeErrors = false;
+        assertFalse(syntaxErrors.hasErrors(), "Unexpected syntax error in file: " + file.getName());
 
-        TypeChecker checker = null;
-
-        if (!hasSyntaxErrors) {
-            checker = new TypeChecker();
-            checker.visit(tree);
-            hasTypeErrors = checker.hasErrors();
-        }
-
-        if (hasSyntaxErrors) {
-            System.out.println("  Syntax error(s):");
-            syntaxErrors.getErrors().forEach(System.out::println);
-        }
-
-        if (hasTypeErrors && checker != null) {
-            System.out.println("  Type error(s):");
-            checker.printErrors();
-        }
-
-        assertFalse(hasSyntaxErrors, "Unexpected syntax error in file: " + file.getName());
-        assertFalse(hasTypeErrors, "Unexpected type error in file: " + file.getName());
-    }
-
-    public static Stream<File> provideFailingFiles() {
-        return getFilesWithPrefix("err_");
+        TypeChecker checker = new TypeChecker();
+        checker.visit(tree);
+        assertFalse(checker.hasErrors(), "Unexpected type error in file: " + file.getName());
     }
 
     @ParameterizedTest
@@ -95,32 +77,22 @@ public class TypeCheckTest {
             hasTypeErrors = checker.hasErrors();
         }
 
-        if (hasSyntaxErrors) {
-            System.out.println("  Syntax error(s):");
-            syntaxErrors.getErrors().forEach(e -> System.out.println("  " + e));
-        }
-
-        if (hasTypeErrors && checker != null) {
-            System.out.println("  Type error(s):");
-            checker.printErrors();
-        }
-
         assertTrue(hasSyntaxErrors || hasTypeErrors,
                 "Expected error in file: " + file.getName() + ", but none occurred.");
     }
 
-    private static Stream<File> getFilesWithPrefix(String prefix) {
-        File dir = new File(TEST_DIR);
+    private static Stream<File> getFilesFromDir(String dirPath) {
+        File dir = new File(dirPath);
         if (!dir.exists() || !dir.isDirectory()) {
-            throw new RuntimeException("Missing tests directory: " + TEST_DIR);
+            throw new RuntimeException("Missing directory: " + dirPath);
         }
 
-        File[] files = dir.listFiles((d, name) -> name.startsWith(prefix) && name.endsWith(".pjp"));
+        File[] files = dir.listFiles((d, name) -> name.endsWith(".pjp"));
         if (files == null || files.length == 0) {
-            throw new RuntimeException("No test files found with prefix: " + prefix);
+            throw new RuntimeException("No test files found in: " + dirPath);
         }
 
-        return Stream.of(files);
+        return Arrays.stream(files);
     }
 
     private static class SyntaxErrorCollector extends BaseErrorListener {

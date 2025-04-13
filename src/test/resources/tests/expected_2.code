@@ -1,6 +1,0 @@
-push I 10
-save x
-load I 3
-push F 3.14
-add F
-save y

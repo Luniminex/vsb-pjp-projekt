@@ -115,7 +115,11 @@ save k
 push I 55
 save k
 load k
+pop
+load k
 save j
+load j
+pop
 load j
 save i
 load i
